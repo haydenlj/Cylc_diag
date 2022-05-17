@@ -1,0 +1,49 @@
+#!jinja2
+{% set PBS_QUEUE = "batch" %}
+{% set PBS_PARTITION = "orion" %}
+{% set PBS_QUEUE_DEBUG = "debug" %}
+{% set PBS_PARTITION_DEBUG = "debug" %}
+{% set HPC_ACCOUNT = "da-cpu" %}
+{% set WORKDIR = "$WORKDIR" %}
+{% set NTASKS_JEDI = 216 %}
+{% set NTASKS = 256 %}
+
+{% set MPI_RUN = "srun" %}
+{% set MPI_ARGS_JEDI = " --ntasks=%d --cpu_bind=core --distribution=block:block" % NTASKS_JEDI %}
+{% set MPI_ARGS_FCST = " --ntasks=%d --tasks-per-node=16 " % NTASKS %}
+
+{% set WORKDIR = "/work2/noaa/da/${USER}" %}
+{% set CYCLING_SCRIPT_HOME  = "${WORKDIR}/skylab/scripts" %}
+[runtime]
+    [[root]]
+        [[[job]]]
+            batch system = slurm
+            execution time limit = PT1H
+    [[RunForecast]]
+        [[[job]]]
+            execution time limit = PT1H
+        [[[directives]]]
+            --account = {{ HPC_ACCOUNT }}
+            --partition = {{ PBS_PARTITION }}
+            --qos = {{ PBS_QUEUE }}
+            #--partition = {{ PBS_PARTITION_DEBUG }}
+            #--qos = {{ PBS_QUEUE_DEBUG }}
+            --time = "00:50:00"
+            #--time = "00:15:00"
+            --exclusive = 
+            --cpus-per-task = 1
+            --ntasks = {{ NTASKS }}
+            --nodes = 16
+    [[RunJEDI]]
+        [[[job]]]
+            execution time limit = PT1H
+        [[[directives]]]
+            --account = {{ HPC_ACCOUNT }}
+            #--partition = {{ PBS_PARTITION_DEBUG }}
+            #--qos = {{ PBS_QUEUE_DEBUG }}
+            --partition = {{ PBS_PARTITION }}
+            --qos = {{ PBS_QUEUE }}
+            --time = "00:55:00"
+            --exclusive = 
+            --cpus-per-task = 2
+            --ntasks = {{ NTASKS_JEDI }}

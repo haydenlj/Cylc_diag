@@ -1,0 +1,86 @@
+#!jinja2    
+
+    # ------------------------------------------------------------
+    # Task definitions for executing a Environmental Forecast
+    # ------------------------------------------------------------
+
+    [[SetupForecast]]
+        title = "Call the templates to set up environment and create job script"
+        description = """
+                Do various setup tasks for the forecast model
+        """
+        pre-script = """
+            . ${SCRIPT_DIR}/setup.sh
+            . ${SCRIPT_DIR}/setupfv3.sh
+            """
+        [[[environment]]]
+            PDY       = $(cylc cycle-point --template=%Y%m%d)
+            cyc       = $(cylc cycle-point --template=%H)
+            DATA      = ${TOP_DIR}/fv3temp   #DATA here is the rundir for FV3 runs
+            ROTDIR    = ${TOP_DIR}
+            icdir     = ${TOP_DIR}/${CDATE}/output/
+            sfcfeed   = ${DATA_DIR}/ens_c${RES}/enkfgdas.${PREDATE:0:8}/${PREDATE:8:2}/atmos/mem001/RESTART
+            dtg_e    = $(cylc cycle-point --offset-hours=-3 --template=%Y%m%d.%H0000)
+            MPI_ARGS  = {{MPI_ARGS_FCST}}
+            MPI_RUN   = {{MPI_RUN}}
+            savedir   = ${ROTDIR}/${CDATE}/atmos
+
+    [[PrepForecast]]
+        inherit = SetupForecast
+        title = "Create the Forecast script to be run"
+        description = """
+                Call a templating routine to setup Forecast
+                for particular cycle and configuration
+        """
+        script = """
+            bash ${SCRIPT_DIR}/run_fv3.sh
+            ln -sf ${sfcfeed}/${dtg_e}.sfc_data.tile1.nc ${DATA}/INPUT/sfc_data.tile1.nc
+            ln -sf ${sfcfeed}/${dtg_e}.sfc_data.tile2.nc ${DATA}/INPUT/sfc_data.tile2.nc
+            ln -sf ${sfcfeed}/${dtg_e}.sfc_data.tile3.nc ${DATA}/INPUT/sfc_data.tile3.nc
+            ln -sf ${sfcfeed}/${dtg_e}.sfc_data.tile4.nc ${DATA}/INPUT/sfc_data.tile4.nc
+            ln -sf ${sfcfeed}/${dtg_e}.sfc_data.tile5.nc ${DATA}/INPUT/sfc_data.tile5.nc
+            ln -sf ${sfcfeed}/${dtg_e}.sfc_data.tile6.nc ${DATA}/INPUT/sfc_data.tile6.nc
+            [[ ! -d ${TOP_DIR}/${CDATE} ]] && mkdir -p ${TOP_DIR}/${CDATE}
+            cp ${DATA}/diag_table      ${TOP_DIR}/${CDATE}/.
+            cp ${DATA}/data_table      ${TOP_DIR}/${CDATE}/.
+            cp ${DATA}/field_table     ${TOP_DIR}/${CDATE}/.
+            cp ${DATA}/nems.configure  ${TOP_DIR}/${CDATE}/.
+            cp ${DATA}/model_configure ${TOP_DIR}/${CDATE}/.
+            cp ${DATA}/input.nml       ${TOP_DIR}/${CDATE}/.
+            #cp ${DATA}/job.sh          ${TOP_DIR}/${CDATE}/job_fcst_${CDATE}.sh
+        """ 
+
+        [[[job]]]
+            batch system = background
+
+    [[RunForecast]]
+        inherit = SetupForecast
+        title = "Run the Forecast"
+        description = """
+                Run the Forecast
+        """
+        script = """
+            cd $DATA
+            bash job.sh  
+        """
+
+        [[[environment]]]
+            ROTDIR    = ${TOP_DIR}
+            icdir     = ${TOP_DIR}/${CDATE}/output
+            sfcfeed   = ${DATA_DIR}/ens_c${RES}/enkfgdas.${PREDATE:0:8}/${PREDATE:8:2}/atmos/mem001/RESTART
+            savedir   = ${ROTDIR}/${CDATE}/atmos
+            MPI_ARGS  = {{MPI_ARGS_FCST}}
+            MPI_RUN   = {{MPI_RUN}}
+
+    [[PostForecast]]
+        inherit = SetupForecast
+        title = "Save Forecast Files"
+        description = """
+                Run the Post Forecast to archive forecast files
+        """
+        script = """
+            bash ${SCRIPT_DIR}/archive_fv3.sh
+        """
+
+        [[[job]]]
+            batch system = background
